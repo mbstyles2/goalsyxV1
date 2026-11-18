@@ -1,0 +1,527 @@
+GOALSYX — FINAL FORMATION-BASED ATTACKING AND DEFENSIVE AI SPECIFICATION
+Godot 3 | Football Manager-Inspired Tactics + FIFA/PES-Inspired Responsiveness
+
+============================================================
+1. OBJECTIVE
+============================================================
+
+Act as an experienced Godot 3 gameplay AI programmer and football-simulation systems designer. Design and implement an intelligent attacking and defensive AI system for GOALSYX, a 2D six-a-side football game.
+
+Combine:
+
+- Football Manager-inspired intelligence: tactical positioning, formation discipline, player roles, space management, coordinated team movement, defensive structure, and tactical identity.
+- FIFA/PES-inspired responsiveness: responsive movement, ball-carrier pressure, tackles, interceptions, quick passing, dribbling, shooting decisions, and immediate reactions to changing situations.
+
+Every team must have its own formation, tactic, player roles, and AI configuration. Both teams must operate independently and react to one another.
+
+The AI must not simply move every player toward the ball. It must understand where each player should move, why that position matters, and how the movement supports the team's current tactical plan.
+
+The final gameplay should feel tactically organised while remaining responsive, readable, efficient, and enjoyable in an arcade-style football game.
+
+============================================================
+2. EXISTING PROJECT CONTEXT AND NON-NEGOTIABLE ARCHITECTURE
+============================================================
+
+- Engine: Godot 3, using Godot 3-compatible GDScript and APIs.
+- Game: GOALSYX, a 2D six-a-side football game.
+- Current pitch rectangle: Rect2(50, 50, 1350, 750).
+- The project already contains a basic script named tactic.gd.
+- KEEP and EXTEND tactic.gd. It already serves as the tactics manager.
+- Create these three new AI scripts:
+  1. AttackAI.gd
+  2. DefendAI.gd
+  3. PlayerDecisionAI.gd
+- Do NOT create a separate TacticsManager.gd.
+
+The larger architecture described in this specification is a description of responsibilities, not an instruction to create a separate script for every responsibility. Match coordination, formation handling, team shape, tuning parameters, and goalkeeper coordination should be implemented by extending existing systems or placing the minimum necessary logic in the four agreed scripts (tactic.gd plus the three new scripts), unless inspection proves that the project already has a suitable separate module that should be reused.
+
+Do not automatically create new scripts named MatchAIController.gd, FormationManager.gd, TacticsManager.gd, AttackingAI.gd, DefensiveAI.gd, TeamShapeManager.gd, GoalkeeperAI.gd, or AITuningConfig.gd. In particular, do not create TacticsManager.gd because tactic.gd already fulfils that responsibility. Reuse an equivalent script if it already exists and works.
+
+Use the existing project's naming conventions where appropriate, but retain the agreed new filenames AttackAI.gd, DefendAI.gd, and PlayerDecisionAI.gd unless there is a concrete technical reason to adapt them.
+
+IMPORTANT SIX-A-SIDE RULE:
+The six formations listed later are familiar 11-a-side tactical identities. GOALSYX is six-a-side. Do not create extra players or assign impossible roles to force literal 11-a-side formations. Adapt each formation into a valid six-player shape that preserves its tactical identity and fits the actual team size and goalkeeper arrangement in the existing project. Clearly document each adaptation.
+
+============================================================
+3. FIRST STEP: INSPECT THE EXISTING PROJECT
+============================================================
+
+Before changing code:
+
+1. Inspect the current scenes and scripts, especially tactic.gd, player controllers, ball logic, possession handling, movement, formation/positioning, player roles, goalkeeper logic if present, and match-state handling.
+2. Determine how players and teams are represented, how possession is detected, how the direction of attack is determined, and how movement/actions are executed.
+3. Identify existing functions, signals, variables, node paths, and systems that can be reused.
+4. Briefly report what already exists, what should be reused, and what must change.
+5. Do not invent node names, function names, scene paths, variables, or APIs before inspecting the actual code.
+6. Do not replace working systems or duplicate movement, ball physics, possession, passing, player-role, formation, or goalkeeper logic.
+7. If an essential integration detail is missing, ask one focused question rather than building on an unsupported assumption.
+8. Implement incrementally and keep each stage compatible with Godot 3.
+
+If project files are available, work against the actual files and test after each stage. If files are not available, provide clearly separated code for each file and identify the exact integration points that must be adapted.
+
+============================================================
+4. CORE MODULE RESPONSIBILITIES
+============================================================
+
+A. EXISTING tactic.gd — TACTICS MANAGER
+
+Extend the existing tactic.gd rather than replacing it or creating TacticsManager.gd.
+
+Responsibilities:
+- Store each team's selected formation and tactical style.
+- Provide tactical instructions and parameters to the AI scripts.
+- Define team-level behaviours such as pressing intensity, defensive compactness, defensive depth, attacking width, passing risk, tempo, support distance, forward runs, transition speed, and counterattack urgency.
+- Expose formation positions and/or role assignments in a form compatible with the existing positioning system.
+- Allow both teams to use independent formations, tactics, roles, and settings.
+- Expose or update the team's behaviour when possession changes.
+- Coordinate the four match states: attacking, defending, transition to attack, and transition to defence.
+- Keep formation, tactic, role, and current match situation distinct:
+  * Formation determines the team's base shape and starting positions.
+  * Tactic determines the team's overall behaviour.
+  * Role determines an individual player's responsibilities.
+  * Match situation influences the player's immediate decision.
+- Provide instructions and team context; do not place every player-level decision in tactic.gd.
+- Keep configuration straightforward. Prefer clear parameters and sensible defaults over a complicated new configuration framework.
+
+B. NEW AttackAI.gd — ATTACKING BEHAVIOUR
+
+Responsibilities:
+- Determine appropriate attacking behaviour based on possession, player role, tactical instructions, nearby opponents, teammates, available space, distance and angle to goal, passing lanes, and player attributes when available.
+- Support passing, dribbling, shooting, crossing or cutbacks where the existing game supports them, off-ball movement, support runs, forward runs, width, and space creation.
+- Select safe passes, progressive passes, through passes, or quick forward passes according to the tactic and situation.
+- Encourage passing triangles, useful support angles, and more than one option for the ball carrier.
+- Stop off-ball players from clustering around the ball or occupying the same space.
+- Position off-ball players to provide width, support the ball carrier, run into open space, attack space behind defenders, or retain defensive cover according to their roles.
+- Make shooting decisions based on distance, angle, pressure, goalkeeper position if available, and whether a better passing option exists.
+- Make dribbling decisions based on pressure, space, player attributes if present, and whether passing or shooting is preferable.
+- Respect formation and role responsibilities; not every player should act like a striker.
+- Support fast counterattacks when the selected tactic calls for them.
+- Use existing movement and action functions. Do not create another movement controller or ball-control system.
+
+C. NEW DefendAI.gd — DEFENSIVE BEHAVIOUR
+
+Responsibilities:
+- Organise the team when the opposition has possession.
+- Position players relative to the ball, the goal they defend, formation, role, teammates, opponents, and immediate threats.
+- Support marking, covering, pressing, tackling, interceptions, blocking passing lanes, tracking runners, recovery runs, and defensive-line behaviour where supported by the existing game.
+- Decide which player should pressure the ball carrier and which players should cover passing options, dangerous spaces, and potential runners.
+- Avoid having every defender chase the ball. Coordinate pressure, cover, and balance.
+- Protect central areas when appropriate while responding to wide threats.
+- Maintain sensible spacing and avoid unnecessary clustering or crossing paths.
+- Adjust pressure and recovery behaviour according to the selected tactic and match state.
+- Reuse existing goalkeeper logic if it exists. Do not create GoalkeeperAI.gd unless the existing project structure specifically requires a new goalkeeper module and the need is established after inspection.
+- Use existing movement, tackling, and ball-interaction functions rather than duplicating them.
+
+D. NEW PlayerDecisionAI.gd — PLAYER-LEVEL DECISION MAKING
+
+Responsibilities:
+- Act as the decision layer for each AI-controlled player.
+- Observe relevant match information: ball position and velocity if available, possession, player/team positions, opponents, open space, distance to goal, player role, available attributes, formation, tactic, and match state.
+- Decide what the player should do next.
+- Route the selected behaviour to AttackAI.gd or DefendAI.gd as appropriate.
+- Distinguish between attacking, defending, transition to attack, and transition to defence.
+- Prevent conflicting actions, constant decision switching, unnecessary movement, and multiple players chasing the ball.
+- Use readable decision rules and priorities first. Add weighted scoring, cooldowns, or more advanced decision selection only where they materially improve behaviour.
+- Reassess decisions when possession, ball position, pressure, danger, or tactical conditions change.
+- Separate decision selection from execution:
+  * PlayerDecisionAI.gd decides WHAT the player should do.
+  * AttackAI.gd or DefendAI.gd determines the relevant behaviour and how to execute it through existing systems.
+
+OVERALL FLOW
+
+    tactic.gd
+        -> PlayerDecisionAI.gd
+            -> AttackAI.gd OR DefendAI.gd
+                -> Existing player movement and action systems
+
+Adapt the precise call direction to the existing project if necessary, but preserve the responsibilities and avoid circular dependencies.
+
+============================================================
+5. SHARED AI DECISION LOOP
+============================================================
+
+Every AI-controlled player should follow this conceptual loop:
+
+1. OBSERVE: Identify the ball, teammates, opponents, goals, open spaces, passing lanes, and immediate threats.
+2. UNDERSTAND: Determine possession and whether the team is attacking, defending, transitioning to attack, or transitioning to defence.
+3. CONSULT: Read the team's formation, tactic, and the player's role.
+4. EVALUATE: Assess available actions, space, pressure, danger, support, and counterattack risk.
+5. DECIDE: Select one appropriate action with a clear priority.
+6. EXECUTE: Move toward a sensible target or perform the selected action through existing systems.
+7. REASSESS: Update the decision when meaningful conditions change.
+
+Use sensible decision intervals, action priorities, target-position smoothing, or cooldowns where useful to prevent jitter and constant decision switching. Movement should still feel responsive. Avoid long decision delays that make players feel unresponsive.
+
+Do not recalculate expensive decisions unnecessarily every frame if a small decision interval or event-driven update is suitable. Urgent situations—such as a shot, a dangerous ball near goal, a loose ball, or a possession change—must still trigger prompt reactions.
+
+============================================================
+6. THE FOUR TACTICAL STYLES
+============================================================
+
+All four tactics must influence both attacking and defensive behaviour. They must not be implemented merely as labels or changes to player speed.
+
+A. COUNTERATTACK
+
+Attacking:
+- Transition forward quickly after winning possession.
+- Look for forward passes, through balls, and runners attacking open space.
+- Send suitable attackers forward while keeping enough support and protection behind the ball.
+- Prefer exploiting an unbalanced defence over repeatedly passing sideways.
+- Take early shots or deliver crosses/cutbacks when the opportunity is good.
+- Use direct play when it creates a real advantage, not as an unconditional rule.
+
+Defending:
+- Maintain a compact, organised shape rather than pressing constantly.
+- Protect central areas and dangerous passing lanes.
+- Let the opponent advance into less dangerous areas before committing to a challenge when appropriate.
+- Keep players positioned to launch a counterattack after winning possession.
+- Recover quickly if the first defensive line is bypassed.
+
+Identity: Absorb pressure, win possession, and attack the space left behind.
+
+B. BALANCED
+
+Attacking:
+- Mix short passes, forward passes, dribbling, and supporting runs.
+- Maintain width and provide nearby passing options.
+- Advance when space is available without sending too many players forward.
+- Choose between patient build-up and quick attacks according to the situation.
+
+Defending:
+- Maintain a compact shape with sensible spacing.
+- Press when the opportunity is good and recover when the press is beaten.
+- Mark dangerous opponents and protect central areas.
+- Balance pressure on the ball with cover and recovery runs.
+
+Identity: Adapt to the match without an extreme attacking or defensive commitment.
+
+C. RETAIN POSSESSION
+
+Attacking:
+- Prefer safe short and medium-distance passes when useful.
+- Create passing triangles and multiple options around the ball carrier.
+- Move intelligently to provide support and passing angles.
+- Recycle possession when forward progress is blocked.
+- Use width to stretch the defence and move forward when a clear opening appears.
+- Avoid unnecessary long balls, low-probability passes, and speculative shots.
+- Do not keep possession pointlessly when a clear high-quality chance is available.
+
+Defending:
+- Keep the team compact enough to prevent dangerous counterattacks.
+- Press intelligently after losing possession, especially near the ball.
+- Keep players positioned to recover loose balls and protect central spaces.
+- Avoid reckless challenges that leave gaps.
+- After regaining possession, secure the ball when appropriate rather than forcing an immediate forward attack.
+
+Identity: Control the game through passing, movement, spacing, and intelligent possession recovery.
+
+D. GEGENPRESS
+
+Attacking:
+- Use forward movement, quick combinations, and supporting runners.
+- Keep nearby teammates close enough to support the ball carrier and contest loose balls.
+- Use forward passes when the defence is exposed.
+- Position players to support an immediate press if possession is lost.
+- Balance attacking numbers with protection against counterattacks.
+
+Defending and transition:
+- Apply immediate coordinated pressure after losing possession.
+- Nearby players pressure the ball or close passing options; other players block escape routes and cover dangerous spaces.
+- Players farther from the ball retain defensive cover instead of blindly joining the press.
+- Try to regain possession quickly, then attack while the opponent is disorganised.
+- If the press is bypassed, recover into the defensive formation instead of chasing indefinitely.
+
+Identity: Win the ball back quickly through coordinated pressure and exploit the opponent's disorganisation.
+
+============================================================
+7. FORMATIONS AND THEIR TACTICAL IDENTITIES
+============================================================
+
+All four tactics must work with all six formation identities. Do not implement 24 unrelated AI systems. Use a shared decision engine and configurable tactical parameters.
+
+IMPORTANT: The following are 11-a-side formation descriptions used to define tactical identities. Translate them into valid six-a-side formations for GOALSYX, taking the actual number of field players and goalkeeper into account. Do not create extra players. Document the six-a-side role mapping for each formation and ensure every player has a valid position and responsibility.
+
+A. 4-3-3
+
+Traditional identity: Four defenders, three midfielders, three forwards.
+
+- Attacking: Wingers stretch the pitch, the striker threatens the defensive line, and midfielders create passing options, make forward runs, or control the centre. Fullbacks overlap when appropriate.
+- Defensive: The front three can press the opponent's build-up. Midfielders protect central passing lanes while the back line remains coordinated.
+- Counterattack: Wingers and striker attack open space immediately; midfielders release forward passes while remaining players protect against counters.
+- Balanced: Wingers, midfielders, and wide defenders advance selectively while midfield retains cover.
+- Retain Possession: Midfielders form passing triangles, wide players provide width, and wide defenders support circulation without both abandoning defensive cover.
+- Gegenpress: The front attackers and nearest midfielders pressure the ball; remaining players cover central spaces and forward runs.
+
+B. 4-2-3-1
+
+Traditional identity: Four defenders, two deeper midfielders, three attacking midfielders, and one striker.
+
+- Attacking: The central attacking midfielder links midfield to attack. Wide attackers stretch or cut inside, while the striker occupies defenders. Wide defenders support selectively.
+- Defensive: Deeper midfielders protect the centre and screen passes. Attacking midfielders support pressing and track dangerous runners.
+- Counterattack: The central attacking player releases the striker or wide attackers quickly. Deeper midfielders provide initial defensive protection.
+- Balanced: The central attacking player connects the lines while deeper midfielders balance forward movement and cover.
+- Retain Possession: Deeper midfielders offer safe passing outlets; the attacking midfielder finds pockets of space and wide players provide passing angles.
+- Gegenpress: The forward line pressures the opponent's first pass while deeper midfielders cover central exits.
+
+C. 4-4-2
+
+Traditional identity: Four defenders, four midfielders, and two strikers.
+
+- Attacking: Wide midfielders provide width and crosses. Two forwards coordinate movement; one may run behind while the other supports or links play.
+- Defensive: Midfielders maintain a compact line, protect flanks and centre, and work with forwards to apply pressure.
+- Counterattack: Forwards provide immediate targets. Wide players advance quickly and central midfielders support without exposing the defence.
+- Balanced: Two compact lines support wide attacks, forward combinations, and selective runs.
+- Retain Possession: Central midfielders offer short passing options, wide players maintain width, and a forward can drop deeper to link play.
+- Gegenpress: Forwards pressure defenders, wide players close passing lanes, and central midfielders contest loose balls while deeper players retain cover.
+
+D. 3-5-2
+
+Traditional identity: Three centre-backs, five midfielders including wingbacks, and two strikers.
+
+- Attacking: Wingbacks provide width and crosses. Central midfielders control the centre while forwards combine and occupy defenders.
+- Defensive: Three central defenders protect the middle. Wide players recover to defend the flanks, and midfielders block dangerous central passes.
+- Counterattack: Forwards offer immediate outlets. Wide players advance when safe while enough players protect against turnovers.
+- Balanced: Wide players advance selectively, midfielders share responsibilities, and the back line provides stability.
+- Retain Possession: Midfielders create passing triangles; wide players maintain width and forwards provide outlets without forcing poor passes.
+- Gegenpress: Nearby midfielders and forwards pressure the ball; wide players close wide exits and deeper defenders cover space behind the press.
+
+E. 4-5-1
+
+Traditional identity: Four defenders, five midfielders, and one striker.
+
+- Attacking: Midfielders support the lone forward, wide players provide width, and central midfielders make selective forward runs. Avoid leaving the forward isolated.
+- Defensive: Midfielders form a compact barrier in front of the back line. The forward presses or screens useful passes.
+- Counterattack: The forward provides a target while wide players sprint into space. Central midfielders support the break and retain cover.
+- Balanced: The midfield provides defensive security while selected players advance to support attacks.
+- Retain Possession: Midfielders circulate the ball and create passing triangles; they rotate to support the lone forward.
+- Gegenpress: Nearby midfielders pressure the ball while the rest retain central compactness. The forward blocks or pressures a useful escape pass.
+
+F. 3-4-3
+
+Traditional identity: Three centre-backs, four midfielders including wide players/wingbacks, and three forwards.
+
+- Attacking: The front three stretch the defence, make runs behind the defensive line, and combine in wide and central areas. Wide midfielders provide width when forwards move inside.
+- Defensive: Three central defenders protect the middle while wide players recover to cover the flanks. The front three can press opposing defenders.
+- Counterattack: The front three attack open space immediately, supported by early passes from midfield. Deeper players protect against turnovers.
+- Balanced: The front three create threats while midfielders advance selectively and deeper players retain cover.
+- Retain Possession: Forwards stretch the opposition, midfielders provide passing options, and wide players maintain width. Recycle the ball when forward lanes close.
+- Gegenpress: The front attackers and nearest midfielders pressure the ball and block passing lanes; others cover central and wide threats.
+
+FORMATION AND TACTIC INTERACTION
+
+Do not hard-code every formation/tactic combination separately. For each player, calculate behaviour and a target position using:
+- Formation and current positional role.
+- Selected tactical style.
+- Current possession and transition state.
+- Ball location and direction of attack.
+- Teammate and opponent positions.
+- Available space and passing lanes.
+- Player attributes and stamina if already supported.
+- Current counterattack risk.
+- Current defensive and attacking balance.
+
+Blend the player's formation-based home position with a situation-dependent target. For example, a wide defender may advance to support possession, but should remain more conservative if another wide defender is already forward and the opponent has a counterattacking threat.
+
+Tactics should modify parameters such as pressing intensity, forward movement, passing risk, support distance, defensive depth, transition speed, and the number of players committed to attacks.
+
+============================================================
+8. PLAYER ROLES AND ATTRIBUTES
+============================================================
+
+Inspect existing GOALSYX role options before adding anything. Reuse existing roles and attributes wherever possible. The following are possible role identities, not a requirement to implement every role if they do not fit the six-a-side game.
+
+Centre-back:
+- Defensive
+- Ball-Playing
+- Covering
+- Aggressive
+
+Fullback / wide defender:
+- Defensive
+- Attacking
+- Inverted
+- Balanced
+
+Defensive midfielder:
+- Anchor
+- Ball-Winning
+- Deep-Lying Playmaker
+- Half-Back
+- Segundo Volante
+
+Central midfielder:
+- Box-to-Box
+- Mezzala
+- Central Playmaker
+- Carrilero
+- Advanced CM
+
+Attacking midfielder:
+- Advanced Playmaker
+- Shadow Striker
+- Trequartista
+- Attacking Midfielder
+- Enganche
+
+Winger / wide attacker:
+- Traditional
+- Inverted
+- Inside Forward
+- Wide Playmaker
+- Defensive Winger
+- Wide Target Forward
+
+Striker:
+- Advanced Forward
+- Poacher
+- Target Forward
+- Deep-Lying Forward
+- False Nine
+- Complete Forward
+- Pressing Forward
+
+Role behaviour must modify individual responsibilities without overriding the team's tactical identity. For example, a Ball-Playing Centre-Back may seek a safe progressive pass, while a Covering Centre-Back prioritises protecting space behind teammates.
+
+Attributes should influence decision quality, execution, and reaction speed—not guarantee success. Use attributes such as passing, shooting, dribbling, tackling, positioning, pace, stamina, or decision-making only if the project already contains them or they can be integrated without unnecessary duplication.
+
+============================================================
+9. GOALKEEPER BEHAVIOUR
+============================================================
+
+The goalkeeper must cooperate with every formation and tactic.
+
+- Adjust positioning relative to the ball, defended goal, shooting threat, and existing goalkeeping model.
+- Decide when to remain on the line, narrow the angle, or rush out.
+- React to shots, rebounds, crosses, and loose balls where supported by the game.
+- Distribute according to team tactics: safer short distribution for possession play, quicker forward distribution for counterattacks, and sensible choices under pressure.
+- Avoid rushing out recklessly or abandoning the goal without a clear reason.
+
+First inspect the current goalkeeper implementation. If goalkeeper logic already exists, reuse and coordinate with it through the existing architecture or DefendAI.gd as appropriate. Do not create GoalkeeperAI.gd automatically. Only introduce a separate goalkeeper module if inspection establishes that it is necessary and compatible with the agreed architecture.
+
+============================================================
+10. MATCH STATES AND TRANSITIONS
+============================================================
+
+Use or extend the existing match-state and possession logic to represent:
+
+- ATTACKING: This team has possession and is trying to create a scoring opportunity.
+- DEFENDING: The opponent has possession and this team is protecting its goal.
+- TRANSITION_TO_ATTACK: This team has just won possession and must choose between a quick attack and controlled possession.
+- TRANSITION_TO_DEFENCE: This team has just lost possession and must choose between immediate pressure and recovery into shape.
+
+When possession changes, both teams must promptly update their behaviour.
+
+Winning possession:
+- Choose attacking behaviour based on tactic, formation, available space, pressure, and nearby support.
+- Counterattack should prioritise forward space when the opportunity exists.
+- Retain Possession should secure the ball when appropriate.
+- Gegenpress should exploit a regain while the opposition is disorganised.
+
+Losing possession:
+- Gegenpress should initiate coordinated counterpressure.
+- Counterattack should recover compactly and protect dangerous areas.
+- Balanced should use situational pressure and recovery.
+- Retain Possession should press intelligently near the ball while protecting against counters.
+
+Do not teleport all players instantly into formation. Players should move naturally toward new target positions, preserve momentum where sensible, and prioritise urgent threats. Avoid rapid switching between contradictory actions due to minor fluctuations in possession or player positions.
+
+============================================================
+11. MOVEMENT, ACTIONS, AND TEAM SHAPE
+============================================================
+
+- Reuse the existing player movement, ball-action, possession, collision, and physics systems.
+- Do not override human-controlled player input unless the current game design explicitly requires it.
+- Respect existing player speed, acceleration, turning, and collision behaviour.
+- Use formation home positions and situation-dependent target positions to maintain team shape.
+- Keep players spaced sensibly and reduce unnecessary clustering, overlap, and crossing paths.
+- Ensure off-ball players do not remain stationary without reason, crowd the ball carrier, or abandon all defensive cover.
+- Choose one primary action at a time unless the existing controller intentionally supports combined actions.
+- Use priorities for urgent situations, including shots, dangerous balls near goal, loose balls, immediate pressure, and possession changes.
+- Keep movement responsive while avoiding jitter and target-position oscillation.
+
+============================================================
+12. CONFIGURATION AND IMPLEMENTATION RULES
+============================================================
+
+Where useful and compatible with existing project code, expose clear parameters instead of scattering hard-coded values throughout the scripts. Potential parameters include:
+- Pressing intensity.
+- Defensive compactness.
+- Defensive line/depth.
+- Attacking width.
+- Passing risk.
+- Forward-run frequency.
+- Attacking tempo.
+- Counterattack urgency.
+- Support distance.
+- Marking preference.
+- Transition response.
+- Number of players committed forward.
+- AI decision update interval.
+
+Keep defaults simple and explain what each parameter controls. These parameters should live in tactic.gd or existing configuration structures where practical. Do not create AITuningConfig.gd solely to hold them unless the project already uses that module and it should be reused.
+
+Code requirements:
+- Use Godot 3-compatible GDScript syntax and APIs.
+- Keep tactic.gd, AttackAI.gd, DefendAI.gd, and PlayerDecisionAI.gd focused on their responsibilities.
+- Avoid circular dependencies. Follow existing project conventions for references, signals, and function calls.
+- Handle missing references and invalid states safely.
+- Use readable names and comments for non-obvious logic.
+- Do not build an unnecessarily complex framework.
+- Do not duplicate the possession system, formation system, movement controller, ball physics, or existing action logic.
+- When presenting code, state the target filename and explain how it connects to the existing project.
+- If replacing a function, identify the exact existing function and preserve unrelated functionality.
+- Distinguish verified project details from assumptions and proposed additions.
+
+============================================================
+13. TESTING AND ACCEPTANCE CRITERIA
+============================================================
+
+Implement incrementally. Test each module before integrating the next. Test all six formation identities with all four tactics for both teams, using valid six-a-side adaptations.
+
+Verify that:
+
+1. Both teams can use independent formations, tactics, and role assignments.
+2. Every active player, including the goalkeeper where applicable, has a valid position and responsibility.
+3. All six formation identities have sensible six-a-side adaptations.
+4. AI players choose attacking or defensive behaviour based on possession and match state.
+5. Players transition correctly when possession changes.
+6. Each tactic produces visibly different attacking and defensive behaviour.
+7. Formation shape remains recognisable while players adapt to match situations.
+8. The ball carrier can pass, dribble, or shoot when the existing game supports those actions.
+9. Off-ball players create support options and useful runs instead of clustering around the ball.
+10. Defenders coordinate pressure, cover, marking, interceptions, and recovery rather than all chasing the ball.
+11. Wide defenders, wingbacks, midfielders, and forwards respect their responsibilities.
+12. Goalkeepers make sensible decisions using the existing goalkeeper system.
+13. Player attributes influence decisions and execution where those attributes exist.
+14. AI decisions remain stable, responsive, and efficient.
+15. Players do not become stuck, jitter constantly, switch actions every frame, or move in contradictory directions.
+16. No tactic/formation combination disables the opposing team's AI or breaks match flow.
+17. Existing human controls, ball physics, collisions, goals, and gameplay remain functional.
+18. The project runs without GDScript errors or avoidable runtime errors.
+
+============================================================
+14. REQUIRED DELIVERABLES
+============================================================
+
+Work in this order:
+
+1. Inspect the actual project and briefly report existing systems that can be reused.
+2. Propose the integration plan for tactic.gd, AttackAI.gd, DefendAI.gd, and PlayerDecisionAI.gd.
+3. Explain how the six formation identities will be adapted to the current six-a-side roster.
+4. Implement or provide the scripts incrementally using the real project structure.
+5. Explain how the scripts communicate and how possession, roles, formations, tactics, and match states interact.
+6. Provide a concise test checklist and clearly identify any remaining limitations.
+
+Do not skip project inspection and immediately produce code based on imaginary APIs.
+
+============================================================
+15. FINAL DESIGN PRINCIPLE
+============================================================
+
+GOALSYX should combine Football Manager-style tactical team intelligence with FIFA/PES-style responsive gameplay.
+
+Formation determines the team's base shape. Tactic determines the team's overall behaviour. Role determines individual responsibilities. The match situation determines the immediate action.
+
+The existing tactic.gd remains the tactics manager. PlayerDecisionAI.gd decides what each player should do. AttackAI.gd and DefendAI.gd handle the appropriate attacking or defensive behaviour. Existing movement, ball, possession, formation, role, and goalkeeper systems should be reused wherever possible.
+
+Use a shared, configurable decision system—not 24 unrelated formation/tactic implementations. Preserve the agreed architecture, adapt the formation identities to GOALSYX's actual six-a-side player count, inspect the code before modifying it, and build and test the AI in manageable stages.
